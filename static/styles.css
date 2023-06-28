@@ -1,0 +1,40 @@
+body {
+    background: rgb(0,0,128);
+    background: radial-gradient(circle, rgb(128, 26, 0) 0%, rgb(94, 1, 1) 100%);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+    padding: 0;
+    color: white;
+    font-size: 4em;
+    font-family: 'Lato', sans-serif;
+}
+
+.infoBox {
+    position: absolute;
+    top: 50%; 
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 2.5px 10px; /* Top and bottom padding is 2.5px, left and right padding is 10px */
+    font-size: 25px; 
+    background: radial-gradient(circle, rgb(128, 26, 0) 0%, rgb(94, 1, 1) 100%);
+    color: white;
+    text-align: center;
+    border-radius: 1.5px;
+    transition: opacity 0.3s ease-out;
+    z-index: 1000;
+}
+
+.hidden {
+    opacity: 0; /* Hides the box by making it completely transparent */
+}
+
+.container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh; /* Adjust as needed */
+}
+
