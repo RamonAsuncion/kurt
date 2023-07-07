@@ -17,41 +17,191 @@ function updateTime() {
     document.getElementById('clock').textContent = `${hours}:${minutes} ${period}`;
 }
 
-window.onload = function() {
+// function that takes in text and get's the audio https://developer.mozilla.org/en-US/docs/Web/API/SpeechSynthesis
+function textToSpeech(text) {
+    if ('speechSynthesis' in window) {
+        // Speech Synthesis supported 🎉
+        var msg = new SpeechSynthesisUtterance();
+        msg.text = text;
+        msg.volume = 1; // 0 to 1
+        window.speechSynthesis.speak(msg);
+    }
+}
+
+// function that takes in user audio and gets the text
+function speechToText() {
+    // Check for browser support
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+        console.error('Speech recognition API is not supported in this browser.');
+    }
+
+    // Create a new instance of the speech recognition API
+    const recognition = new SpeechRecognition();
+
+    // Set the continuous and interimResults properties
+    recognition.continuous = true; // Enables continuous recognition
+    recognition.interimResults = true; // Enables interim results
+
+    let finalTranscript = ''; // Stores the final transcript
+    let timeoutId = null; // Stores the ID of the timeout
+
+    // Define event handlers
+    recognition.onstart = () => console.log('Speech recognition started');
+    recognition.onresult = (event) => {
+        clearTimeout(timeoutId);
+
+        let transcript = Array.from(event.results)
+            .map(result => result[0])
+            .map(result => result.transcript)
+            .join('');
+
+        finalTranscript += transcript;
+    };
+    recognition.onerror = (event) => console.error('Error:', event.error);
+    recognition.onend = () => {
+        console.log('Speech recognition ended');
+        return finalTranscript;
+    };
+
+    // Start recognition
+    recognition.start();
+}
+
+// function that takes in text and get's the response from gpt
+function getResponse(text) {
+    return null;
+}
+
+window.onload = async function () {
     updateTime();  // Update the time immediately
     setInterval(updateTime, 1000);  // Update the time every second
 
-    var waitingBox = document.getElementById('waitingBox');
-    waitingBox.classList.remove('hidden');  // Show the "waiting" box
+    let notDetectedBox = document.getElementById('notDetectedBox');
+    let detectedBox = document.getElementById('detectedBox');
+    let listeningBox = document.getElementById('listeningBox');
+    let clock = document.getElementById('clock');
+    let canvas = document.getElementById('canvas');
+    let context = canvas.getContext('2d');
+    var audio = document.getElementById('detectedAudio');
+    audio.volume = 0.25;
 
-    startTracking();  // Start the face tracking
-};
+    await faceapi.loadTinyFaceDetectorModel('/models'); // Load the face detection model
+    await faceapi.loadFaceLandmarkModel('/models'); // Load the face landmark model
+    await faceapi.loadFaceExpressionModel('/models'); // Load the face expression model
 
-function startTracking() {
-    var video = document.getElementById('webcam');
-    var canvas = document.getElementById('canvas');
-    var context = canvas.getContext('2d');
+    // Get the video element
+    const video = document.querySelector('video');
 
-    var tracker = new tracking.ObjectTracker('face');
-    tracker.setInitialScale(4);
-    tracker.setStepSize(2);
-    tracker.setEdgesDensity(0.1);
+    // Define the video constraints
+    const constraints = {
+        audio: true, // Change to true if you also want to get the user's audio
+        video: true
+    };
 
-    tracking.track('#webcam', tracker, { camera: true });
+    // Testing out the speech to text
+    speechToText().then((text) => {
+        textToSpeech(text);
+    });
 
-    tracker.on('track', function(event) {
-        context.clearRect(0, 0, canvas.width, canvas.height);
+    // Get the user's media
+    navigator.mediaDevices.getUserMedia(constraints)
+        .then((stream) => {
+            // Set the video src to the stream
+            video.srcObject = stream;
 
-        if (event.data.length > 0) {  // If a face is detected
-            onFaceDetected();  // Show the "detected" box and hide the "waiting" box
+            // Play the video once it's ready
+            video.onloadedmetadata = () => {
+                video.play();
+            };
+        })
+        .catch((err) => {
+            // Log the error if something goes wrong
+            console.error(`${err.name}: ${err.message}`);
+        });
 
-            event.data.forEach(function(rect) {
-                context.strokeStyle = '#a64ceb';
-                context.strokeRect(rect.x, rect.y, rect.width, rect.height);
-                context.fillStyle = "#fff";
-                context.fillText('x: ' + rect.x + 'px', rect.x + rect.width + 5, rect.y + 11);
-                context.fillText('y: ' + rect.y + 'px', rect.x + rect.width + 5, rect.y + 22);
-            });
-        }
+    let faceDetected = false;
+
+    video.addEventListener('loadedmetadata', () => {
+        setInterval(async () => {
+            const detections = await faceapi 
+                .detectAllFaces(video, new faceapi.TinyFaceDetectorOptions())
+                .withFaceLandmarks()
+                .withFaceExpressions();
+
+            if (detections && detections[0] && detections[0].detection._score > 0 && !faceDetected) {
+                requestAnimationFrame(() => {
+                    // Hide the notDetectedBox immediately
+                    notDetectedBox.classList.add('hidden');
+
+                    // Show the detectedBox immediately
+                    detectedBox.classList.remove('hidden');
+
+                    audio.play();
+
+                    // After a delay, start fading out the detectedBox
+                    setTimeout(() => {
+                        detectedBox.style.transition = 'opacity 0.25s ease-out'; 
+                        detectedBox.style.opacity = '0';
+                    }, 1000);  
+
+                    // Remove 'hidden' class and add 'listening' class to listeningBox
+                    listeningBox.classList.remove('hidden');
+                    listeningBox.classList.add('listening');
+
+                    // After 2 second, start fading out the clock
+                    setTimeout(() => {
+                        requestAnimationFrame(() => {
+                            clock.style.transition = 'opacity 2.5s ease-out';
+                            clock.style.opacity = '0';
+                        });
+                    }, 3000);
+
+                    // Make the canvas visible
+                    setTimeout(() => {
+                        canvas.classList.remove('hidden');
+                    }, 3500);
+                });
+                    
+                faceDetected = true;
+            }
+
+            // Set the canvas width and height
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+
+            // Clear the canvas
+            context.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw the video frame on the canvas  
+            if (detections && detections[0] && detections[0].detection._score > 0.5) {  // If a face is detected with a high confidence score
+                // Draw the outline of the face
+                const box = detections[0].detection._box;
+                context.strokeStyle = 'white';
+                context.lineWidth = 0.5;
+                context.strokeRect(box._x, box._y, box._width, box._height);
+
+                // Draw dots on the eyes and mouth
+                const positions = detections[0].landmarks._positions;
+                const eyes = [positions[36], positions[39], positions[42], positions[45]];
+                const mouth = [positions[51], positions[57]];
+
+                // Draw dots on the eyes
+                eyes.forEach((eye) => {
+                    context.beginPath();
+                    context.arc(eye._x, eye._y, 2, 0, 2 * Math.PI);
+                    context.fillStyle = 'white';
+                    context.fill();
+                });
+
+                // Draw dots on the mouth
+                mouth.forEach((dot) => {
+                    context.beginPath();
+                    context.arc(dot._x, dot._y, 2, 0, 2 * Math.PI);
+                    context.fillStyle = 'white';
+                    context.fill();
+                });
+            }
+        }, 100);
     });
 }

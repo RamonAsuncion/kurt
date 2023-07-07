@@ -11,23 +11,55 @@ body {
     font-family: 'Lato', sans-serif;
 }
 
+.container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    position: relative;
+}
+
+.center-content {
+    display: flex;
+    flex-wrap: nowrap;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    margin: 10vh 0;
+}
+
 .infoBox {
     position: absolute;
-    top: 50%; 
-    left: 50%;
-    transform: translateX(-50%);
-    padding: 2.5px 10px; /* Top and bottom padding is 2.5px, left and right padding is 10px */
+    padding: 5px 15px; 
     font-size: 25px; 
     background: radial-gradient(circle, rgb(128, 26, 0) 0%, rgb(94, 1, 1) 100%);
+    outline: 1px solid white;
     color: white;
     text-align: center;
     border-radius: 1.5px;
-    transition: opacity 0.3s ease-out;
     z-index: 1000;
 }
 
+.listening {
+    position: absolute;
+    bottom: 0; 
+    left: 50%;
+    transform: translate(-50%, 0);
+    animation: slide-up 0.5s ease-out forwards;
+}
+
 .hidden {
-    opacity: 0; /* Hides the box by making it completely transparent */
+    opacity: 0;
+}
+
+#clock {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    margin-right: -50%;
+    transform: translate(-50%, -50%);
 }
 
 .container {
@@ -35,6 +67,29 @@ body {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    height: 100vh; /* Adjust as needed */
+    height: 100vh; 
 }
 
+#webcam, #canvas {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+#webcam {
+    display: none;
+}
+
+#canvas {
+    z-index: -5;
+}
+
+@keyframes slide-up {
+    0% {
+        transform: translate(-50%, 0);
+    }
+    100% {
+        transform: translate(-50%, -50%);
+    }
+}
